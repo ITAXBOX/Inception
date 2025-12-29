@@ -1,0 +1,62 @@
+# Docker Compose for orchestrating WordPress with MariaDB and Nginx
+# the driver bridge is used to create an isolated network for the services
+networks:
+  itawi_network:
+    driver: bridge
+# Define named volumes with bind mounts to host directories
+# bind mounts ensure data persistence outside of containers
+volumes:
+  mariadb:
+    driver_opts:
+      type: none
+      device: /home/ali-itawi/data/mariadb
+      o: bind
+  wordpress:
+    driver_opts:
+      type: none
+      device: /home/ali-itawi/data/wordpress
+      o: bind
+
+services:
+  mariadb:
+    container_name: mariadb
+    image: mariadb
+    build: ./requirements/mariadb
+    env_file: .env
+    restart: always
+    volumes:
+      - mariadb:/var/lib/mysql:rw
+    networks:
+      - itawi_network
+
+  wordpress:
+    container_name: wordpress
+    image: wordpress
+    build: ./requirements/wordpress
+    env_file: .env
+    restart: always
+    volumes:
+      - wordpress:/var/www/wordpress:rw
+    networks:
+      - itawi_network
+    depends_on:
+      - mariadb
+
+  nginx:
+    container_name: nginx
+    image: nginx
+    build:
+      context: ./requirements/nginx
+      args:
+        - DOMAIN_NAME=${DOMAIN_NAME}
+        - CERTS=${CERTS}
+    env_file: .env
+    restart: always
+    volumes:
+      - wordpress:/var/www/wordpress:rw
+    networks:
+      - itawi_network
+    ports:
+      - "443:443"
+    depends_on:
+      - wordpress
